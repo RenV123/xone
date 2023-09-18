@@ -30,9 +30,10 @@ static void gip_add_client(struct gip_client *client)
 	int err;
 
 	err = device_add(&client->dev);
-	if (err) {
+	if (err)
+	{
 		dev_err(&client->dev, "%s: add device failed: %d\n",
-			__func__, err);
+				__func__, err);
 		return;
 	}
 
@@ -52,9 +53,10 @@ static void gip_remove_client(struct gip_client *client)
 static void gip_client_state_changed(struct work_struct *work)
 {
 	struct gip_client *client = container_of(work, typeof(*client),
-						 state_work);
+											 state_work);
 
-	switch (atomic_read(&client->state)) {
+	switch (atomic_read(&client->state))
+	{
 	case GIP_CL_IDENTIFIED:
 		gip_add_client(client);
 		break;
@@ -67,7 +69,11 @@ static void gip_client_state_changed(struct work_struct *work)
 	}
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0)
 static int gip_client_uevent(struct device *dev, struct kobj_uevent_env *env)
+#else
+static int gip_client_uevent(const struct device *dev, struct kobj_uevent_env *env)
+#endif
 {
 	struct gip_client *client = to_gip_client(dev);
 	struct gip_classes *classes = client->classes;
@@ -122,7 +128,8 @@ static int gip_bus_probe(struct device *dev)
 		return 0;
 
 	err = drv->probe(client);
-	if (!err) {
+	if (!err)
+	{
 		spin_lock_irqsave(&client->lock, flags);
 		client->drv = drv;
 		spin_unlock_irqrestore(&client->lock, flags);
@@ -169,8 +176,8 @@ static struct bus_type gip_bus_type = {
 };
 
 struct gip_adapter *gip_create_adapter(struct device *parent,
-				       struct gip_adapter_ops *ops,
-				       int audio_pkts)
+									   struct gip_adapter_ops *ops,
+									   int audio_pkts)
 {
 	struct gip_adapter *adap;
 	int err;
@@ -180,13 +187,15 @@ struct gip_adapter *gip_create_adapter(struct device *parent,
 		return ERR_PTR(-ENOMEM);
 
 	adap->id = ida_simple_get(&gip_adapter_ida, 0, 0, GFP_KERNEL);
-	if (adap->id < 0) {
+	if (adap->id < 0)
+	{
 		err = adap->id;
 		goto err_put_device;
 	}
 
 	adap->state_queue = alloc_ordered_workqueue("gip%d", 0, adap->id);
-	if (!adap->state_queue) {
+	if (!adap->state_queue)
+	{
 		err = -ENOMEM;
 		goto err_remove_ida;
 	}
@@ -239,7 +248,8 @@ void gip_destroy_adapter(struct gip_adapter *adap)
 	/* ensure all state changes have been processed */
 	flush_workqueue(adap->state_queue);
 
-	for (i = GIP_MAX_CLIENTS - 1; i >= 0; i--) {
+	for (i = GIP_MAX_CLIENTS - 1; i >= 0; i--)
+	{
 		client = adap->clients[i];
 		if (!client)
 			continue;
@@ -288,7 +298,8 @@ struct gip_client *gip_get_or_init_client(struct gip_adapter *adap, u8 id)
 	spin_lock_irqsave(&adap->clients_lock, flags);
 
 	client = adap->clients[id];
-	if (!client) {
+	if (!client)
+	{
 		client = gip_init_client(adap, id);
 		if (IS_ERR(client))
 			goto err_unlock;
@@ -356,7 +367,7 @@ void gip_free_client_info(struct gip_client *client)
 }
 
 int __gip_register_driver(struct gip_driver *drv, struct module *owner,
-			  const char *mod_name)
+						  const char *mod_name)
 {
 	drv->drv.name = drv->name;
 	drv->drv.bus = &gip_bus_type;

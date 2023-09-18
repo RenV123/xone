@@ -20,7 +20,7 @@
 
 static const guid_t gip_gamepad_guid_middle_button =
 	GUID_INIT(0xecddd2fe, 0xd387, 0x4294,
-		  0xbd, 0x96, 0x1a, 0x71, 0x2e, 0x3d, 0xc7, 0x7d);
+			  0xbd, 0x96, 0x1a, 0x71, 0x2e, 0x3d, 0xc7, 0x7d);
 
 enum gip_gamepad_button {
 	GIP_GP_BTN_MENU = BIT(2),
@@ -37,6 +37,13 @@ enum gip_gamepad_button {
 	GIP_GP_BTN_BUMPER_R = BIT(13),
 	GIP_GP_BTN_STICK_L = BIT(14),
 	GIP_GP_BTN_STICK_R = BIT(15),
+};
+
+enum gip_gamepad_paddles {
+	GIP_GP_BTN_PADDLE_P1 = BIT(0),
+	GIP_GP_BTN_PADDLE_P2 = BIT(1),
+	GIP_GP_BTN_PADDLE_P3 = BIT(2),
+	GIP_GP_BTN_PADDLE_P4 = BIT(3),
 };
 
 enum gip_gamepad_motor {
@@ -57,7 +64,8 @@ struct gip_gamepad_pkt_input {
 } __packed;
 
 struct gip_gamepad_pkt_series_xs {
-	u8 unknown[4];
+	u8 paddle_data;
+	u8 unknown[3];
 	u8 share_button;
 } __packed;
 
@@ -94,7 +102,7 @@ static void gip_gamepad_send_rumble(struct timer_list *timer)
 {
 	struct gip_gamepad_rumble *rumble = from_timer(rumble, timer, timer);
 	struct gip_gamepad *gamepad = container_of(rumble, typeof(*gamepad),
-						   rumble);
+											   rumble);
 	unsigned long flags;
 
 	spin_lock_irqsave(&rumble->lock, flags);
@@ -106,7 +114,7 @@ static void gip_gamepad_send_rumble(struct timer_list *timer)
 }
 
 static int gip_gamepad_queue_rumble(struct input_dev *dev, void *data,
-				    struct ff_effect *effect)
+									struct ff_effect *effect)
 {
 	struct gip_gamepad_rumble *rumble = input_get_drvdata(dev);
 	u32 mag_left = effect->u.rumble.strong_magnitude;
@@ -156,7 +164,7 @@ static bool gip_gamepad_is_series_xs(struct gip_client *client)
 
 	/* the elite controller also has a middle button */
 	if (hw->vendor == GIP_GP_VID_MICROSOFT &&
-	    hw->product == GIP_GP_PID_ELITE2)
+		hw->product == GIP_GP_PID_ELITE2)
 		return false;
 
 	for (i = 0; i < client->interfaces->count; i++) {
@@ -168,6 +176,14 @@ static bool gip_gamepad_is_series_xs(struct gip_client *client)
 	return false;
 }
 
+static bool gip_gamepad_is_elite_controller(struct gip_client *client)
+{
+	struct gip_hardware *hw = &client->hardware;
+
+	return (hw->vendor == GIP_GP_VID_MICROSOFT &&
+			hw->product == GIP_GP_PID_ELITE2)
+}
+
 static int gip_gamepad_init_input(struct gip_gamepad *gamepad)
 {
 	struct input_dev *dev = gamepad->input.dev;
@@ -175,7 +191,17 @@ static int gip_gamepad_init_input(struct gip_gamepad *gamepad)
 
 	gamepad->series_xs = gip_gamepad_is_series_xs(gamepad->client);
 	if (gamepad->series_xs)
+	{
 		input_set_capability(dev, EV_KEY, KEY_RECORD);
+	}
+
+	if (gip_gamepad_is_elite_controller(gamepad->client))
+	{
+		input_set_capability(dev, EV_KEY, BTN_TRIGGER_HAPPY5);
+		input_set_capability(dev, EV_KEY, BTN_TRIGGER_HAPPY6);
+		input_set_capability(dev, EV_KEY, BTN_TRIGGER_HAPPY7);
+		input_set_capability(dev, EV_KEY, BTN_TRIGGER_HAPPY8);
+	}
 
 	input_set_capability(dev, EV_KEY, BTN_MODE);
 	input_set_capability(dev, EV_KEY, BTN_START);
@@ -200,14 +226,14 @@ static int gip_gamepad_init_input(struct gip_gamepad *gamepad)
 	err = gip_gamepad_init_rumble(gamepad);
 	if (err) {
 		dev_err(&gamepad->client->dev, "%s: init rumble failed: %d\n",
-			__func__, err);
+				__func__, err);
 		goto err_delete_timer;
 	}
 
 	err = input_register_device(dev);
 	if (err) {
 		dev_err(&gamepad->client->dev, "%s: register failed: %d\n",
-			__func__, err);
+				__func__, err);
 		goto err_delete_timer;
 	}
 
@@ -220,8 +246,8 @@ err_delete_timer:
 }
 
 static int gip_gamepad_op_battery(struct gip_client *client,
-				  enum gip_battery_type type,
-				  enum gip_battery_level level)
+								  enum gip_battery_type type,
+								  enum gip_battery_level level)
 {
 	struct gip_gamepad *gamepad = dev_get_drvdata(&client->dev);
 
@@ -256,6 +282,28 @@ static int gip_gamepad_op_input(struct gip_client *client, void *data, u32 len)
 			return -EINVAL;
 
 		input_report_key(dev, KEY_RECORD, !!pkt_xs->share_button);
+	}
+
+	if (gip_gamepad_is_elite_controller(gamepad->client))
+	{
+		u8 paddles;
+		struct gip_firmware_version *firmw_ver = (struct gip_firmware_version *)client->firmware_versions->data;
+		if(firmw_ver->major >= 5 && firmw_ver->minor >= 11)
+		{
+			//I know this is not ideal...
+			unsigned char *data_bytes = (unsigned char *)data;
+			paddles = data_bytes[64];
+		}
+		else
+		{
+			paddles = pkt_xs->paddle_data;
+		}
+
+		// paddles
+		input_report_key(dev, BTN_TRIGGER_HAPPY5, paddles & GIP_GP_BTN_PADDLE_P1);
+		input_report_key(dev, BTN_TRIGGER_HAPPY6, paddles & GIP_GP_BTN_PADDLE_P2);
+		input_report_key(dev, BTN_TRIGGER_HAPPY7, paddles & GIP_GP_BTN_PADDLE_P3);
+		input_report_key(dev, BTN_TRIGGER_HAPPY8, paddles & GIP_GP_BTN_PADDLE_P4);
 	}
 
 	input_report_key(dev, BTN_START, buttons & GIP_GP_BTN_MENU);
@@ -297,6 +345,18 @@ static int gip_gamepad_probe(struct gip_client *client)
 	err = gip_set_power_mode(client, GIP_PWR_ON);
 	if (err)
 		return err;
+
+	if (gip_gamepad_is_elite_controller(client))
+	{
+		//This is only needed for firmware above 5.11 but for
+		//simplicity we always request it.
+		err = gip_request_paddles_info(client);
+		if (err)
+		{
+			dev_err(&client->dev, "%s: request paddle info failed: %d\n",
+					__func__, err);
+		}
+	}
 
 	err = gip_init_battery(&gamepad->battery, client, GIP_GP_NAME);
 	if (err)
