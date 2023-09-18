@@ -181,7 +181,7 @@ static bool gip_gamepad_is_elite_controller(struct gip_client *client)
 	struct gip_hardware *hw = &client->hardware;
 
 	return (hw->vendor == GIP_GP_VID_MICROSOFT &&
-			hw->product == GIP_GP_PID_ELITE2)
+			hw->product == GIP_GP_PID_ELITE2);
 }
 
 static int gip_gamepad_init_input(struct gip_gamepad *gamepad)
