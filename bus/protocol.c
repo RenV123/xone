@@ -389,14 +389,17 @@ int gip_request_paddles_info(struct gip_client *client)
     err = adap->ops->get_buffer(adap, &buf);
     if (err)
     {
-        dev_err(&client->dev, "%s: get buffer failed: %d\n", __func__, err);
+        dev_err(&client->dev,
+                "%s: get buffer failed: %d\n",
+                __func__,
+                err);
     }
     else if (buf.length < sizeof(extra_input_packet_init))
     {
         dev_err(&client->dev,
                 "%s: extra input packet length exceeds buffer length: %d\n",
                 __func__,
-                err);
+                buf.length);
         err = -ENOSPC;
     }
     else
