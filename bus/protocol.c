@@ -390,35 +390,33 @@ int gip_request_paddles_info(struct gip_client *client)
     if (err)
     {
         dev_err(&client->dev, "%s: get buffer failed: %d\n", __func__, err);
-        goto err_unlock;
     }
-
-    if (buf.length < sizeof(extra_input_packet_init))
+    else if (buf.length < sizeof(extra_input_packet_init))
     {
         dev_err(&client->dev,
                 "%s: extra input packet length exceeds buffer length: %d\n",
                 __func__,
                 err);
         err = -ENOSPC;
-        goto err_unlock;
     }
-
-    memcpy(buf.data, extra_input_packet_init, sizeof(extra_input_packet_init));
-
-    /* set actual length */
-    buf.length = sizeof(extra_input_packet_init);
-
-    /* always fails on adapter removal */
-    err = adap->ops->submit_buffer(adap, &buf);
-    if (err)
+    else
     {
-        dev_dbg(&client->dev,
-                "%s: submit paddle request buffer failed: %d\n",
-                __func__,
-                err);
+        memcpy(buf.data, extra_input_packet_init, sizeof(extra_input_packet_init));
+
+        /* set actual length */
+        buf.length = sizeof(extra_input_packet_init);
+
+        /* always fails on adapter removal */
+        err = adap->ops->submit_buffer(adap, &buf);
+        if (err)
+        {
+            dev_dbg(&client->dev,
+                    "%s: submit paddle request buffer failed: %d\n",
+                    __func__,
+                    err);
+        }
     }
 
-err_unlock:
     spin_unlock_irqrestore(&adap->send_lock, flags);
     return err;
 }
