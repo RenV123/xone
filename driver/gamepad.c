@@ -286,20 +286,8 @@ static int gip_gamepad_op_input(struct gip_client *client, void *data, u32 len)
 
 	if (gip_gamepad_is_elite_controller(gamepad->client))
 	{
-		u8 paddles;
-		struct gip_firmware_version *firmw_ver = (struct gip_firmware_version *)client->firmware_versions->data;
-		if(firmw_ver->major >= 5 && firmw_ver->minor >= 11)
-		{
-			//I know this is not ideal...
-			unsigned char *data_bytes = (unsigned char *)data;
-			paddles = data_bytes[64];
-		}
-		else
-		{
-			paddles = pkt_xs->paddle_data;
-		}
+		u8 paddles = pkt_xs->paddle_data;
 
-		// paddles
 		input_report_key(dev, BTN_TRIGGER_HAPPY5, paddles & GIP_GP_BTN_PADDLE_P1);
 		input_report_key(dev, BTN_TRIGGER_HAPPY6, paddles & GIP_GP_BTN_PADDLE_P2);
 		input_report_key(dev, BTN_TRIGGER_HAPPY7, paddles & GIP_GP_BTN_PADDLE_P3);
