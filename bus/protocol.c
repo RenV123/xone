@@ -187,12 +187,11 @@ struct gip_command_descriptor {
 /*
  * This packet is required to get additional input data
  * from Xbox One Elite Series 2 (0x045e:0x0b00) pads.
- * We mostly do this right now to get paddle data 
+ * We mostly do this right now to get paddle data
  * taken from https://github.com/paroj/xpad/blob/master/xpad.c*
 */
-static const u8 extra_input_packet_init[] = {
-	0x4d, 0x10, 0x01, 0x02, 0x07, 0x00
-};
+static const u8 extra_input_packet_init[] =
+    { 0x4d, 0x10, 0x01, 0x02, 0x07, 0x00 };
 
 static int gip_encode_varint(u8 *buf, u32 val)
 {
@@ -376,7 +375,8 @@ static int gip_request_identification(struct gip_client *client)
     return gip_send_pkt(client, &hdr, NULL);
 }
 
-int gip_request_paddles_info(struct gip_client *client) {
+int gip_request_paddles_info(struct gip_client *client)
+{
     struct gip_adapter *adap = client->adapter;
     struct gip_adapter_buffer buf = {};
     int err;
@@ -387,38 +387,47 @@ int gip_request_paddles_info(struct gip_client *client) {
     spin_lock_irqsave(&adap->send_lock, flags);
 
     err = adap->ops->get_buffer(adap, &buf);
-    if (err) {
-        dev_err(&client->dev, "%s: get buffer failed: %d\n", __func__, err);
-        goto err_unlock;
-    }
-
-    if (buf.length < sizeof(extra_input_packet_init)) {
-        dev_err(&client->dev, 
-        "%s: extra input packet length exceeds buffer length: %d\n", __func__, err);
-        err = -ENOSPC;
-        goto err_unlock;
-    }
-
-    memcpy(buf.data, extra_input_packet_init, sizeof(extra_input_packet_init));
-
-    /* set actual length */
-    buf.length = sizeof(extra_input_packet_init);
-
-    /* always fails on adapter removal */
-    err = adap->ops->submit_buffer(adap, &buf);
     if (err)
-        dev_dbg(&client->dev, "%s: submit paddle request buffer failed: %d\n",
-                __func__, err);
+    {
+        dev_err(&client->dev,
+                "%s: get buffer failed: %d\n",
+                __func__,
+                err);
+    }
+    else if (buf.length < sizeof(extra_input_packet_init))
+    {
+        dev_err(&client->dev,
+                "%s: extra input packet length exceeds buffer length: %d\n",
+                __func__,
+                buf.length);
+        err = -ENOSPC;
+    }
+    else
+    {
+        memcpy(buf.data, extra_input_packet_init, sizeof(extra_input_packet_init));
 
-err_unlock:
+        /* set actual length */
+        buf.length = sizeof(extra_input_packet_init);
+
+        /* always fails on adapter removal */
+        err = adap->ops->submit_buffer(adap, &buf);
+        if (err)
+        {
+            dev_dbg(&client->dev,
+                    "%s: submit paddle request buffer failed: %d\n",
+                    __func__,
+                    err);
+        }
+    }
+
     spin_unlock_irqrestore(&adap->send_lock, flags);
-
     return err;
 }
 
 EXPORT_SYMBOL_GPL(gip_request_paddles_info);
 
-int gip_set_power_mode(struct gip_client *client, enum gip_power_mode mode) {
+int gip_set_power_mode(struct gip_client *client, enum gip_power_mode mode)
+{
     struct gip_header hdr = {};
     struct gip_pkt_power pkt = {};
 

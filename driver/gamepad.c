@@ -63,8 +63,7 @@ struct gip_gamepad_pkt_input {
 	__le16 stick_right_y;
 } __packed;
 
-struct gip_gamepad_pkt_series_xs
-{
+struct gip_gamepad_pkt_series_xs {
 	u8 paddle_data;
 	u8 unknown[3];
 	u8 share_button;
@@ -180,14 +179,9 @@ static bool gip_gamepad_is_series_xs(struct gip_client *client)
 static bool gip_gamepad_is_elite_controller(struct gip_client *client)
 {
 	struct gip_hardware *hw = &client->hardware;
-	guid_t *guid;
-	int i;
 
-	if (hw->vendor == GIP_GP_VID_MICROSOFT &&
-		hw->product == GIP_GP_PID_ELITE2)
-		return true;
-
-	return false;
+	return (hw->vendor == GIP_GP_VID_MICROSOFT &&
+			hw->product == GIP_GP_PID_ELITE2);
 }
 
 static int gip_gamepad_init_input(struct gip_gamepad *gamepad)
@@ -196,7 +190,8 @@ static int gip_gamepad_init_input(struct gip_gamepad *gamepad)
 	int err;
 
 	gamepad->series_xs = gip_gamepad_is_series_xs(gamepad->client);
-	if (gamepad->series_xs) {
+	if (gamepad->series_xs)
+	{
 		input_set_capability(dev, EV_KEY, KEY_RECORD);
 	}
 
@@ -291,17 +286,8 @@ static int gip_gamepad_op_input(struct gip_client *client, void *data, u32 len)
 
 	if (gip_gamepad_is_elite_controller(gamepad->client))
 	{
-		u8 paddles;
-		struct gip_firmware_version *firmw_ver = (struct gip_firmware_version *)client->firmware_versions->data;
-		if(firmw_ver->major == 5 && firmw_ver->minor >= 11) {
-			//I know this is not ideal...
-			unsigned char *data_bytes = (unsigned char *)data;
-			paddles = data_bytes[64];
-		} else if(firmw_ver->major == 4) {
-			paddles = pkt_xs->paddle_data;
-		}
+		u8 paddles = pkt_xs->paddle_data;
 
-		// paddles
 		input_report_key(dev, BTN_TRIGGER_HAPPY5, paddles & GIP_GP_BTN_PADDLE_P1);
 		input_report_key(dev, BTN_TRIGGER_HAPPY6, paddles & GIP_GP_BTN_PADDLE_P2);
 		input_report_key(dev, BTN_TRIGGER_HAPPY7, paddles & GIP_GP_BTN_PADDLE_P3);
@@ -350,7 +336,7 @@ static int gip_gamepad_probe(struct gip_client *client)
 
 	if (gip_gamepad_is_elite_controller(client))
 	{
-		//This is only needed for firmware above 5.11 but for 
+		//This is only needed for firmware above 5.11 but for
 		//simplicity we always request it.
 		err = gip_request_paddles_info(client);
 		if (err)
